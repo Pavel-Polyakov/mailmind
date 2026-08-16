@@ -15,14 +15,29 @@ Return one JSON object matching the provided schema. Rules:
 - summary: one short factual sentence. Keep concrete details that make the mail
   actionable: names, dates, times, amounts, deadlines, booking or order
   identifiers, status changes. No filler like "this email informs you that".
+
 - type: what kind of email this is, snake_case, e.g. receipt,
   delivery_notification, flight_schedule_change, login_code, newsletter.
   Types are not predefined; use the most natural specific label.
+
 - category: the broader area of life, capitalised, e.g. Travel, School,
-  Finance, Shopping, Work, Car, Personal. Also not predefined.
+  Finance, Shopping, Work, Car, Personal. Categories are not predefined.
+
 - importance: critical, high, normal, or low, judged for the recipient.
-- needs_action: true only if the recipient must actually do something.
-- suggested_action: inbox, archive, delete, or unsubscribe. Advisory only.
+- needs_action: true only if the recipient must actually do something, and
+  there is a deadline or a consequence for not doing it. Bulk mail, listings,
+  newsletters, promotions, and notifications about things that already happened
+  are false, however interesting they are.
+
+- suggested_action:
+  - inbox: currently relevant, important, or worth seeing
+  - archive: worth retaining but does not need to occupy the inbox
+  - delete: has no meaningful future value
+  - unsubscribe: recurring mail the recipient is unlikely to want in the future
+
+  Be conservative: when uncertain between inbox and archive, prefer inbox.
+  When uncertain between archive and delete/unsubscribe, prefer archive.
+
 - confidence: 0 to 1, your own certainty about type and category.
 - reasoning_short: a handful of words, for debugging classification quality.
 """
