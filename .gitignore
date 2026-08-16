@@ -216,3 +216,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# mailmind
+*.db
+*.db-wal
+*.db-shm
+credentials.json
+token.json

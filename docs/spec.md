@@ -286,16 +286,18 @@ classification      (run_id, message_id, summary, type, category,
 refine_run          (id, source_run_id, kind, model, prompt_version,
                      prompt_text, created_at)
 label_map           (refine_run_id, kind, source_label, canonical_label)
-scan_watermark      (query, last_scanned_at)
+scan_watermark      (query, last_internal_ms, last_scanned_at)
 ```
 
 `status` on `classification_run` is one of:
 
 ```text
-in_progress
-completed
-failed
+in_progress   interrupted with emails still unprocessed
+completed     every email in the run is classified
+failed        finished, but some emails ended as error rows
 ```
+
+`completed` is the only terminal state. `failed` is resumable, because recording failures is only useful if a rerun can retry exactly those.
 
 ### Run identity and resumption
 
@@ -306,11 +308,16 @@ Resolution order for `mailmind scan`:
 ```text
 --resume RUN_ID   resume that run explicitly
 --new-run         always start a new run
-otherwise         resume the most recent in_progress run with a matching
-                  fingerprint, else start a new run
+otherwise         resume the most recent unfinished run with a matching
+                  fingerprint; if the matching run is already completed, do
+                  nothing and say so; otherwise start a new run
 ```
 
 A resumed run skips emails already classified successfully and retries the rest. This is what makes "safe to interrupt" and "do not re-call the LLM unnecessarily" compatible rather than contradictory.
+
+Rerunning the exact same command after a completed run is redundant spend, so it is refused rather than silently repeated. Comparing models or prompts changes the fingerprint on its own; `--new-run` covers deliberately redoing identical work.
+
+Resuming does not re-fetch from Gmail. The stored mail is the run's input, so a resumed run sees exactly what the original run saw. Picking up newly arrived mail is what `--since-last` is for.
 
 ### Prompt versioning
 
