@@ -239,11 +239,24 @@ def refine(
         return _fail(exc)
 
     for outcome in outcomes:
-        merged = sum(1 for src, dst in outcome.mapping.items() if src != dst)
         console.print(
             f"[bold]refine run {outcome.refine_run_id}[/bold] ({outcome.kind}): "
-            f"{outcome.source_labels} → {outcome.canonical_labels} labels, {merged} merged"
+            f"{outcome.source_labels} → {outcome.canonical_labels} labels, "
+            f"{outcome.merged} merged"
         )
+        if outcome.looks_like_a_no_op:
+            # A model that answered with nothing used to look exactly like a
+            # taxonomy that needed no work. Say which one happened.
+            err.print(
+                f"[yellow]warning:[/yellow] the model proposed no merges for "
+                f"{outcome.source_labels} {outcome.kind} labels, so this refine run "
+                f"changes nothing.\n"
+                f"[dim]inspect what it actually returned:\n"
+                f"  sqlite3 {cfg.db} \"SELECT raw_response FROM refine_run "
+                f"WHERE id = {outcome.refine_run_id};\"\n"
+                f"then try again with a stronger --model[/dim]"
+            )
+            continue
         console.print(
             f"[dim]apply with: mailmind report {outcome.kind} "
             f"--run {run} --refine {outcome.refine_run_id}[/dim]"

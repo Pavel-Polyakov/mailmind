@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS refine_run (
     base_url       TEXT,
     prompt_version TEXT NOT NULL,
     prompt_text    TEXT NOT NULL,
+    raw_response   TEXT,
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -139,8 +140,21 @@ def connect(path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.commit()
     return conn
+
+
+# Columns added after the first release. CREATE TABLE IF NOT EXISTS does
+# nothing to a table that already exists, so existing databases need this.
+MIGRATIONS = (("refine_run", "raw_response", "TEXT"),)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, column, decl in MIGRATIONS:
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if existing and column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
 
 
 # --- emails ---------------------------------------------------------------
@@ -433,14 +447,16 @@ def create_refine_run(
     base_url: str | None,
     prompt_version: str,
     prompt_text: str,
+    raw_response: str | None = None,
 ) -> int:
     cur = conn.execute(
         """
         INSERT INTO refine_run
-            (source_run_id, kind, model, base_url, prompt_version, prompt_text)
-        VALUES (?, ?, ?, ?, ?, ?)
+            (source_run_id, kind, model, base_url, prompt_version, prompt_text,
+             raw_response)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (source_run_id, kind, model, base_url, prompt_version, prompt_text),
+        (source_run_id, kind, model, base_url, prompt_version, prompt_text, raw_response),
     )
     conn.commit()
     return int(cur.lastrowid)
