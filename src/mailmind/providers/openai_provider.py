@@ -21,8 +21,10 @@ class OpenAILLM(LLM):
         *,
         api_key_env: str = "OPENAI_API_KEY",
         requires_key: bool = True,
+        reasoning_effort: str | None = None,
     ) -> None:
         super().__init__(model, base_url)
+        self.reasoning_effort = reasoning_effort
         try:
             from openai import OpenAI
         except ImportError as exc:  # pragma: no cover - depends on install extras
@@ -63,6 +65,9 @@ class OpenAILLM(LLM):
         }
 
     def _call(self, system: str, user: str, response_format: dict) -> str:
+        extra: dict = {}
+        if self.reasoning_effort is not None:
+            extra["reasoning_effort"] = self.reasoning_effort
         try:
             response = self._client.chat.completions.create(
                 model=self.model,
@@ -72,6 +77,7 @@ class OpenAILLM(LLM):
                 ],
                 response_format=response_format,
                 temperature=0,
+                extra_body=extra or None,
             )
         except Exception as exc:  # noqa: BLE001 - translated below
             raise _translate(exc) from exc
@@ -86,14 +92,29 @@ class OpenAILLM(LLM):
 
 
 class OllamaLLM(OpenAILLM):
-    """Ollama's OpenAI-compatible endpoint, with its usual local address."""
+    """Ollama's OpenAI-compatible endpoint, with its usual local address.
+
+    Thinking is switched off by default. Classifying an email is a
+    read-and-label task, not a reasoning one, and on a local model the
+    thinking tokens cost seconds per email while the schema forces the answer
+    into fixed fields anyway. `reasoning_short` already carries the model's
+    justification.
+
+    Note this is `reasoning_effort`, not the `think` field: `think` belongs to
+    Ollama's native /api/chat, and the OpenAI-compatible /v1 endpoint silently
+    ignores fields it does not know, so `think` there would look like it
+    worked while doing nothing. Set MAILMIND_REASONING_EFFORT to override
+    (e.g. "low", "medium", "high", or "" to send nothing at all).
+    """
 
     def __init__(self, model: str, base_url: str | None = None) -> None:
+        effort = os.environ.get("MAILMIND_REASONING_EFFORT", "none")
         super().__init__(
             model,
             base_url or "http://localhost:11434/v1",
             api_key_env="OLLAMA_API_KEY",
             requires_key=False,
+            reasoning_effort=effort or None,
         )
 
 

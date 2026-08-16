@@ -93,6 +93,20 @@ uv run mailmind scan --model openai-compatible:my-model \
   --base-url http://localhost:8000/v1 --limit 10 --stdout
 ```
 
+Ollama runs with thinking disabled (`reasoning_effort: "none"`), because
+classifying an email is a read-and-label task and thinking tokens cost real
+seconds per email on a local model. Override if you want it back:
+
+```bash
+MAILMIND_REASONING_EFFORT=medium uv run mailmind scan --model ollama:qwen3:8b ...
+MAILMIND_REASONING_EFFORT= uv run mailmind scan ...   # send no field at all
+```
+
+Note this is `reasoning_effort`, not `think`. `think` is a field on Ollama's
+native `/api/chat`; the OpenAI-compatible `/v1` endpoint this tool uses ignores
+unknown fields silently, so sending `think` there would appear to work while
+changing nothing.
+
 ## Privacy
 
 The database holds plaintext mail, including login codes, so it is created

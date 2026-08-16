@@ -94,6 +94,29 @@ def test_openai_compatible_requires_a_base_url(monkeypatch):
         resolve("openai-compatible:llama3")
 
 
+def test_ollama_disables_thinking_by_default(monkeypatch):
+    monkeypatch.delenv("MAILMIND_REASONING_EFFORT", raising=False)
+    llm = resolve("ollama:qwen3:8b")
+    assert llm.reasoning_effort == "none"
+    assert llm.base_url == "http://localhost:11434/v1"
+
+
+def test_reasoning_effort_can_be_overridden(monkeypatch):
+    monkeypatch.setenv("MAILMIND_REASONING_EFFORT", "high")
+    assert resolve("ollama:qwen3:8b").reasoning_effort == "high"
+
+
+def test_reasoning_effort_can_be_omitted_entirely(monkeypatch):
+    # An empty value sends no field at all, for servers that reject it.
+    monkeypatch.setenv("MAILMIND_REASONING_EFFORT", "")
+    assert resolve("ollama:qwen3:8b").reasoning_effort is None
+
+
+def test_other_providers_send_no_reasoning_field(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    assert resolve("openai:gpt-4o-mini").reasoning_effort is None
+
+
 def test_retry_gives_up_and_reports_the_last_failure():
     def always_fails():
         raise RetryableError("429 rate limited")
